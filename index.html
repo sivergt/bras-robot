@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout : poste de TP — programme à gauche, cellule robotisée à droite, console sur toute la largeur en bas. */
+/* Layout : poste de TP — programme et fonctions à gauche sur toute la hauteur, cellule robotisée et console à droite. */
 :root {
   --bg: #e9edf1;
   --surface: #ffffff;
@@ -28,6 +28,13 @@
   --grid-major: #c3ccd5;
   --code-bg: #fbfcfd;
   --gutter: #8a97a3;
+  --tok-kw: #2453c9;
+  --tok-str: #2b7a3d;
+  --tok-num: #b5530b;
+  --tok-com: #7b8794;
+  --tok-builtin: #0f7c86;
+  --tok-robot: #a86a00;
+  --tok-def: #9c2f6f;
   --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
   --font-body: "Barlow", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -39,6 +46,7 @@
     --danger: #ff7a66; --ok: #5cc98a; --note: #e0bd5a;
     --scene-bg: #11181e; --table: #1d262e; --grid-fine: #26313b; --grid-major: #3a4855;
     --code-bg: #131a20; --gutter: #5f6e7b;
+    --tok-kw: #8fb0ff; --tok-str: #8fd69c; --tok-num: #ffab76; --tok-com: #6f7d8a; --tok-builtin: #62d2da; --tok-robot: #f5b83d; --tok-def: #f08fc8;
     color-scheme: dark;
   }
 }
@@ -48,6 +56,7 @@
   --danger: #ff7a66; --ok: #5cc98a; --note: #e0bd5a;
   --scene-bg: #11181e; --table: #1d262e; --grid-fine: #26313b; --grid-major: #3a4855;
   --code-bg: #131a20; --gutter: #5f6e7b;
+    --tok-kw: #8fb0ff; --tok-str: #8fd69c; --tok-num: #ffab76; --tok-com: #6f7d8a; --tok-builtin: #62d2da; --tok-robot: #f5b83d; --tok-def: #f08fc8;
   color-scheme: dark;
 }
 
@@ -67,13 +76,12 @@ body {
 .app {
   height: 100%;
   display: grid;
-  gap: 12px;
-  grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.2fr);
-  grid-template-rows: auto minmax(0, 1fr) 170px;
+  gap: 12px 0;
+  grid-template-columns: var(--left-w, 46%) 14px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
-    "top top"
-    "left scene"
-    "console console";
+    "top top top"
+    "left split right";
 }
 
 /* Barre du haut */
@@ -127,6 +135,9 @@ button, select {
 .btn-run { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); min-width: 132px; justify-content: center; }
 .btn-run:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
 .btn-run.is-running { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-step { min-width: 150px; justify-content: center; }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn:disabled:hover { border-color: var(--line); }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--ink-2); padding-inline: 8px; }
 .btn-ghost:hover { color: var(--ink); border-color: var(--line); }
 .btn svg { width: 14px; height: 14px; flex: none; }
@@ -184,7 +195,30 @@ button, select {
 .pill[data-state="ok"] { color: var(--ok); border-color: var(--ok); }
 
 .left { grid-area: left; display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
-.editor-panel { flex: 1 1 60%; }
+.editor-panel { flex: 1 1 auto; min-height: 220px; }
+/* poignée pour régler la largeur du programme */
+.splitter {
+  grid-area: split;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  border-radius: 6px;
+}
+.splitter::before {
+  content: "";
+  width: 4px;
+  height: 48px;
+  border-radius: 2px;
+  background: var(--grid-major);
+  transition: background 0.15s, height 0.15s;
+}
+.splitter:hover::before, .splitter.is-dragging::before, .splitter:focus-visible::before { background: var(--accent); height: 80px; }
+.splitter:focus-visible { outline: none; }
+body.is-resizing { cursor: col-resize; user-select: none; }
+body.is-resizing #scene canvas { pointer-events: none; }
+.right { grid-area: right; display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
 .editor {
   flex: 1;
   display: flex;
@@ -208,55 +242,90 @@ button, select {
 .gutter div { height: 21px; }
 .gutter .err { color: #fff; background: var(--danger); border-radius: 0 3px 3px 0; padding-right: 4px; margin-right: -8px; }
 .gutter .cur { color: var(--accent-ink); background: var(--accent); border-radius: 0 3px 3px 0; padding-right: 4px; margin-right: -8px; }
+.line-hl {
+  position: absolute;
+  top: 0;
+  left: 46px;
+  right: 0;
+  height: 21px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-left: 3px solid var(--accent);
+  pointer-events: none;
+}
+.line-hl.is-err { background: color-mix(in srgb, var(--danger) 16%, transparent); border-left-color: var(--danger); }
+textarea#code[readonly] { cursor: default; }
+.code-wrap { position: relative; flex: 1; min-width: 0; }
+/* le texte coloré est dessiné dans .hl, sous la zone de saisie dont le texte est transparent */
+.hl {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+.hl code, textarea#code {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 21px;
+  letter-spacing: 0;
+  padding: 12px 14px;
+  tab-size: 4;
+  white-space: pre;
+}
+.hl code { display: block; color: var(--ink); will-change: transform; }
+.tok-kw { color: var(--tok-kw); }
+.tok-str { color: var(--tok-str); }
+.tok-num { color: var(--tok-num); }
+.tok-com { color: var(--tok-com); }
+.tok-builtin { color: var(--tok-builtin); }
+.tok-robot { color: var(--tok-robot); }
+.tok-def { color: var(--tok-def); }
 textarea#code {
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  margin: 0;
   resize: none;
   border: 0;
   outline: none;
   background: transparent;
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: 14px;
-  line-height: 21px;
-  padding: 12px 14px;
-  tab-size: 4;
-  white-space: pre;
+  color: transparent;
+  caret-color: var(--ink);
   overflow: auto;
 }
+textarea#code::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); color: transparent; }
 textarea#code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
 
-.fn-panel { flex: 0 1 auto; max-height: 42%; }
+.fn-panel { flex: none; max-height: 55%; }
 .fn-list { overflow: auto; padding: 4px 0; margin: 0; list-style: none; }
+.fn-toggle { margin-left: auto; font-size: 13px; padding: 2px 8px; }
 .fn {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1px;
+  grid-template-columns: 14.5em minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px 10px;
   width: 100%;
   text-align: left;
   background: transparent;
   border: 0;
-  padding: 6px 12px;
+  padding: 5px 12px;
   cursor: pointer;
 }
 .fn:hover { background: var(--surface-2); }
 .fn code { font-family: var(--font-mono); font-size: 13px; color: var(--ink); font-weight: 600; }
 .fn code i { font-style: normal; font-weight: 400; color: var(--accent-strong); }
 .fn span { font-size: 13.5px; color: var(--ink-2); line-height: 1.35; }
-.frame-note {
-  font-size: 13px;
-  color: var(--ink-2);
-  padding: 8px 12px 10px;
-  border-top: 1px solid var(--line);
-  line-height: 1.4;
-}
-.frame-note b { color: var(--ink); font-weight: 600; }
+.hud .frame { color: var(--ink-2); }
 .ax-x { color: #e5484d; font-weight: 600; }
 .ax-y { color: #30a46c; font-weight: 600; }
 .ax-z { color: #3e63dd; font-weight: 600; }
 
 /* Scène */
-.scene-panel { grid-area: scene; position: relative; }
+.scene-panel { flex: 1 1 auto; min-height: 260px; position: relative; }
 #scene { position: absolute; inset: 0; }
 #scene canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 .hud {
@@ -325,7 +394,10 @@ textarea#code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
 .boot strong { display: block; color: var(--ink); font-family: var(--font-display); font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
 
 /* Console */
-.console-panel { grid-area: console; }
+.console-panel { flex: none; height: 150px; }
+.right .console-panel.is-collapsed { height: auto; }
+.console-panel.is-collapsed .panel-head { border-bottom: 0; }
+.console-head-btn { font-size: 13px; padding: 2px 8px; }
 #console {
   flex: 1;
   overflow: auto;
@@ -349,11 +421,16 @@ textarea#code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
   .app {
     height: auto;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 340px auto 200px;
-    grid-template-areas: "top" "scene" "left" "console";
+    gap: 12px;
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "top" "right" "left";
   }
-  .editor-panel { min-height: 300px; }
+  .splitter { display: none; }
+  .scene-panel { flex: none; height: 340px; }
+  .console-panel { height: 180px; }
+  .editor-panel { min-height: 320px; }
   .fn-panel { max-height: none; }
+  .fn { grid-template-columns: minmax(0, 1fr); }
   .brand { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -372,6 +449,11 @@ textarea#code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
         <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg>
         <span>Exécuter</span>
       </button>
+      <button class="btn btn-step" id="stepBtn" type="button" title="Exécute le programme une ligne à la fois (F10)">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2v10l6-5z" fill="currentColor"/><rect x="9.5" y="2" width="2.4" height="10" fill="currentColor"/></svg>
+        <span>Pas à pas</span>
+      </button>
+      <button class="btn" id="contBtn" type="button" hidden title="Exécute la suite du programme sans s'arrêter">Continuer</button>
       <button class="btn" id="resetBtn" type="button" title="Remet le robot et les cubes à leur place de départ">
         <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M1.8 1.2v3.4h3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
         Réinitialiser
@@ -397,21 +479,27 @@ textarea#code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
       </div>
       <div class="editor">
         <div class="gutter" id="gutter" aria-hidden="true"></div>
-        <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code Python du programme"></textarea>
+        <div class="line-hl" id="lineHl" hidden></div>
+        <div class="code-wrap">
+          <pre class="hl" aria-hidden="true"><code id="hlCode"></code></pre>
+          <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code Python du programme"></textarea>
+        </div>
       </div>
     </section>
 
     <section class="panel fn-panel" aria-label="Fonctions disponibles">
       <div class="panel-head">
         <span class="label">Fonctions du module robot</span>
-        <span class="pill">clic = insérer</span>
+        <span class="filename" style="color:var(--ink-2)">clic = insérer</span>
+        <button class="btn btn-ghost fn-toggle" id="fnToggle" type="button" aria-expanded="true" aria-controls="fnList">Masquer</button>
       </div>
       <ul class="fn-list" id="fnList"></ul>
-      <div class="frame-note">
-        <b>Repère</b> : origine au centre de la base, <span class="ax-x">X</span> vers l'avant, <span class="ax-y">Y</span> vers la gauche, <span class="ax-z">Z</span> vers le haut. Unités en millimètres. Les cubes font 30 mm de côté ; la portée maximale au ras de la table est d'environ 375 mm.
-      </div>
     </section>
   </div>
+
+  <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" aria-label="Largeur de la zone programme" tabindex="0" title="Glisser pour changer la largeur du programme · double-clic : largeur par défaut"></div>
+
+  <div class="right">
 
   <section class="panel scene-panel" aria-label="Simulation 3D du bras robot">
     <div id="scene"></div>
@@ -423,6 +511,7 @@ textarea#code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
         <span class="k">mm</span>
       </div>
       <div class="grip" id="hgrip">Pince <b>ouverte</b> · aucun objet</div>
+      <div class="frame"><span class="ax-x">X</span> avant · <span class="ax-y">Y</span> gauche · <span class="ax-z">Z</span> haut · cubes de 30 mm</div>
     </div>
     <div class="views" role="group" aria-label="Point de vue">
       <button class="view-btn" type="button" data-view="persp">3D</button>
@@ -436,10 +525,13 @@ textarea#code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--a
   <section class="panel console-panel" aria-label="Console">
     <div class="panel-head">
       <span class="label">Console</span>
-      <button class="btn btn-ghost" id="clearBtn" type="button" style="margin-left:auto;font-size:13px;padding:2px 8px">Effacer</button>
+      <span class="pill" id="conBadge" hidden>nouveau message</span>
+      <button class="btn btn-ghost console-head-btn" id="clearBtn" type="button" style="margin-left:auto">Effacer</button>
+      <button class="btn btn-ghost console-head-btn" id="conToggle" type="button" aria-expanded="true" aria-controls="console">Masquer</button>
     </div>
     <pre id="console" aria-live="polite"></pre>
   </section>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -485,19 +577,19 @@ print("Position finale de la pince :", obtenir_position())
 
 const FUNCTIONS = [
   { sig: "deplacer_vers(<i>x, y, z</i>)", insert: "deplacer_vers(200, 0, 100)",
-    doc: "Déplace le centre de la pince au point (x, y, z), en millimètres." },
+    doc: "Déplace la pince au point (x, y, z), en mm." },
   { sig: "position_repos()", insert: "position_repos()",
-    doc: "Ramène le bras dans sa position de départ, au-dessus de la base." },
+    doc: "Ramène le bras en position de départ." },
   { sig: "ouvrir_pince()", insert: "ouvrir_pince()",
-    doc: "Ouvre la pince. Si elle tenait un objet, elle le lâche." },
+    doc: "Ouvre la pince et lâche l'objet tenu." },
   { sig: "fermer_pince()", insert: "fermer_pince()",
-    doc: "Ferme la pince. Un cube bien centré entre les doigts est saisi." },
+    doc: "Ferme la pince : saisit un cube bien centré." },
   { sig: "obtenir_position()", insert: "x, y, z = obtenir_position()",
-    doc: "Renvoie la position actuelle de la pince sous la forme (x, y, z)." },
+    doc: "Renvoie la position (x, y, z) de la pince." },
   { sig: "position_objet(<i>nom</i>)", insert: 'x, y, z = position_objet("cube rouge")',
-    doc: "Renvoie la position (x, y, z) du centre d'un objet : \"cube rouge\", \"cube vert\" ou \"cube bleu\"." },
+    doc: "Renvoie (x, y, z) d'un cube : \"cube rouge\", \"cube vert\" ou \"cube bleu\"." },
   { sig: "attendre(<i>secondes</i>)", insert: "attendre(1)",
-    doc: "Met le programme en pause pendant la durée indiquée." },
+    doc: "Fait une pause dans le programme." },
 ];
 
 /* ============================================================
@@ -527,6 +619,7 @@ const con = (function () {
   function scroll() { el.scrollTop = el.scrollHeight; }
   function line(text, cls) {
     openLine = null;
+    notify(cls);
     const d = document.createElement("div");
     if (cls) d.className = cls;
     d.textContent = text;
@@ -535,6 +628,7 @@ const con = (function () {
     return d;
   }
   function write(text) { // sortie de print(), qui peut arriver morceau par morceau
+    notify();
     const parts = String(text).split("\n");
     parts.forEach((p, i) => {
       if (!openLine) {
@@ -547,7 +641,10 @@ const con = (function () {
     scroll();
   }
   function clear() { el.textContent = ""; openLine = null; }
-  return { line, write, clear };
+  // console masquée : un badge signale les nouveaux messages, et une erreur la rouvre
+  let onNotify = null;
+  function notify(cls) { if (onNotify) onNotify(cls); }
+  return { line, write, clear, set onNotify(f) { onNotify = f; } };
 })();
 
 /* ============================================================
@@ -926,18 +1023,34 @@ function applyPose() {
 }
 
 // Gravité simplifiée : un cube libre tombe jusqu'à la table ou sur un autre cube
+// Un cube posé trop décentré sur un autre (centre au-delà du bord) glisse et tombe.
 function settle(dt) {
   for (const c of state.cubes) {
     if (c === state.held) continue;
-    let support = 0;
+    let support = 0, base = null;
     const bottom = c.z - CUBE / 2;
     for (const o of state.cubes) {
       if (o === c) continue;
       const top = o.z + CUBE / 2;
-      if (Math.abs(o.x - c.x) < CUBE * 0.9 && Math.abs(o.y - c.y) < CUBE * 0.9 && top <= bottom + 2) {
-        support = Math.max(support, top);
+      if (Math.abs(o.x - c.x) < CUBE * 0.9 && Math.abs(o.y - c.y) < CUBE * 0.9 && top <= bottom + 2 && top > support) {
+        support = top;
+        base = o;
       }
     }
+    if (base && bottom <= support + 0.5) {
+      const dx = c.x - base.x, dy = c.y - base.y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) >= CUBE / 2) {
+        if (!c.slipNoted) {
+          c.slipNoted = true;
+          window.RobotAPI.note(`Le ${c.name} était trop décentré sur le ${base.name} : il a glissé et il est tombé.`);
+        }
+        const v = 180 * dt;
+        if (Math.abs(dx) >= Math.abs(dy)) c.x += Math.sign(dx || 1) * v;
+        else c.y += Math.sign(dy || 1) * v;
+        continue;
+      }
+    }
+    if (support === 0 || !base) c.slipNoted = false;
     if (bottom > support + 0.01) {
       c.vz -= 9810 * dt;
       c.z += c.vz * dt;
@@ -1028,7 +1141,27 @@ function checkTarget(x, y, z) {
   return null;
 }
 
+// Hauteur minimale de la pince pour que le cube tenu se pose sur ce qui se trouve dessous
+function contactZ(x, y) {
+  if (!state.held) return null;
+  let top = null, under = null;
+  for (const o of state.cubes) {
+    if (o === state.held) continue;
+    if (Math.abs(o.x - x) < CUBE && Math.abs(o.y - y) < CUBE) {
+      const t = o.z + CUBE / 2;
+      if (top === null || t > top) { top = t; under = o; }
+    }
+  }
+  return top === null ? null : { z: top + CUBE / 2 - state.heldDz, under };
+}
+
 function moveTo(x, y, z) {
+  let note;
+  const c = contactZ(x, y);
+  if (c && z < c.z - 0.01 && !checkTarget(x, y, c.z)) {
+    note = `§Contact : le ${state.held.name} touche le ${c.under.name}, la pince s'arrête à z = ${fmt(c.z)} mm.`;
+    z = c.z;
+  }
   const target = ik(x, y, z);
   const from = { ...state.joints };
   const delta = Math.max(
@@ -1043,7 +1176,7 @@ function moveTo(x, y, z) {
       a2: from.a2 + (target.a2 - from.a2) * e,
       a3: from.a3 + (target.a3 - from.a3) * e,
     };
-  });
+  }).then(() => note);
 }
 
 function openGripper() {
@@ -1202,7 +1335,7 @@ const ROBOT_MODULE_SRC = "var $builtinmodule = " + robotModule.toString() + ";";
 /* ============================================================
    8. Exécution du programme
    ============================================================ */
-const runBtn = $("runBtn");
+const runBtn = $("runBtn"), stepBtn = $("stepBtn"), contBtn = $("contBtn");
 let stopRequested = false;
 
 function setStatus(text, s) {
@@ -1245,17 +1378,60 @@ function describeError(e) {
   return { type, msg, line };
 }
 
-async function run() {
+// Exécution normale ou pas à pas. Le code est compilé en mode « debugging » : avant chaque
+// ligne, Skulpt demande Sk.breakpoints() ; en pas à pas, on met le programme en pause à cet endroit.
+let stepMode = false;   // pause avant chaque ligne
+let pause = null;       // { line, go(), abort(err) } quand le programme attend « Pas suivant »
+
+function suspensionLine(r) {
+  let s = r, line = null;
+  while (s) { if (s.$lineno) line = s.$lineno; s = s.child; }
+  return line;
+}
+
+function updateButtons() {
+  const running = state.running;
+  runBtn.classList.toggle("is-running", running);
+  runBtn.querySelector("span").textContent = running ? "Arrêter" : "Exécuter";
+  stepBtn.querySelector("span").textContent = running && stepMode ? "Pas suivant" : "Pas à pas";
+  stepBtn.disabled = running && stepMode && !pause;
+  contBtn.hidden = !(running && stepMode);
+  contBtn.disabled = !pause;
+}
+
+function pauseAt(line, go, abort) {
+  pause = { line, go, abort };
+  markCurrent(line);
+  setStatus(line ? "Pause · ligne " + line : "Pause", "run");
+  updateButtons();
+  stepBtn.focus({ preventScroll: true });
+}
+
+function resumeFromPause(keepStepping) {
+  if (!pause) return;
+  const p = pause;
+  pause = null;
+  stepMode = keepStepping;
+  setStatus(keepStepping && p.line ? "Ligne " + p.line + " en cours" : "En cours", "run");
+  if (!keepStepping) markCurrent(null);
+  updateButtons();
+  p.go();
+}
+
+async function run(stepping) {
   if (state.running) { stop(); return; }
-  const code = $("code").value;
+  const code = codeEl.value;
   markLine(null);
+  markCurrent(null);
   con.clear();
-  con.line("▶ Exécution de programme.py", "sys");
+  con.line(stepping ? "▶ Exécution pas à pas de programme.py : cliquez sur « Pas suivant » (ou F10) pour avancer d'une ligne." : "▶ Exécution de programme.py", "sys");
   state.running = true;
   stopRequested = false;
-  runBtn.classList.add("is-running");
-  runBtn.querySelector("span").textContent = "Arrêter";
+  stepMode = !!stepping;
+  pause = null;
+  codeEl.readOnly = true;
   setStatus("En cours", "run");
+  updateButtons();
 
   Sk.configure({
     output: (t) => con.write(t),
@@ -1266,12 +1442,25 @@ async function run() {
     killableFor: true,
     execLimit: null,
     inputfunTakesPrompt: true,
+    debugging: true,
+    breakpoints: (filename) => stepMode && String(filename).indexOf("stdin") >= 0,
   });
   const Interrupt = Sk.builtin.KeyboardInterrupt || Sk.builtin.SystemExit;
   try {
     await Sk.misceval.asyncToPromise(
       () => Sk.importMainWithBody("<stdin>", false, code, true),
-      { "*": () => { if (stopRequested) throw new Interrupt("Programme arrêté"); } }
+      {
+        "Sk.debug": (r) => {
+          if (stopRequested) throw new Interrupt("Programme arrêté");
+          if (!stepMode) return; // passé en « Continuer » entre-temps
+          return new Promise((resolve, reject) => {
+            pauseAt(suspensionLine(r),
+              () => { try { resolve(r.resume()); } catch (err) { reject(err); } },
+              (err) => reject(err));
+          });
+        },
+        "*": () => { if (stopRequested) throw new Interrupt("Programme arrêté"); },
+      }
     );
     con.line("✓ Programme terminé.", "ok");
     setStatus("Terminé", "ok");
@@ -1290,35 +1479,102 @@ async function run() {
   } finally {
     abortAction();
     state.running = false;
-    runBtn.classList.remove("is-running");
-    runBtn.querySelector("span").textContent = "Exécuter";
+    stepMode = false;
+    pause = null;
+    codeEl.readOnly = false;
+    markCurrent(null);
+    updateButtons();
   }
 }
 
 function stop() {
   stopRequested = true;
   abortAction();
+  if (pause) {
+    const p = pause;
+    pause = null;
+    p.abort(new Error("__stop__"));
+  }
+}
+
+function stepClick() {
+  if (!state.running) { run(true); return; }
+  if (pause) { resumeFromPause(true); return; }
+  stepMode = true; // programme lancé normalement : pause avant la prochaine ligne
+  updateButtons();
 }
 
 /* ============================================================
    9. Éditeur
    ============================================================ */
 const codeEl = $("code"), gutterEl = $("gutter");
-let errLine = null;
+const lineHl = $("lineHl");
+let errLine = null, curLine = null;
 function renderGutter() {
+  highlight(codeEl.value);
   const n = codeEl.value.split("\n").length;
   let html = "";
-  for (let i = 1; i <= n; i++) html += `<div${i === errLine ? ' class="err"' : ""}>${i}</div>`;
+  for (let i = 1; i <= n; i++) {
+    const cls = i === errLine ? ' class="err"' : i === curLine ? ' class="cur"' : "";
+    html += `<div${cls}>${i}</div>`;
+  }
   gutterEl.innerHTML = html;
+  syncScroll();
+}
+// Coloration syntaxique Python (mots-clés, chaînes, nombres, commentaires, fonctions du robot)
+const hlCode = $("hlCode");
+const PY_KW = new Set("and as assert break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield".split(" "));
+const PY_CONST = new Set(["True", "False", "None"]);
+const PY_BUILTIN = new Set("print range len int float str list dict tuple set abs round min max sum input type enumerate zip sorted reversed bool isinstance".split(" "));
+const ROBOT_FN = new Set(FUNCTIONS.map((f) => f.insert.replace(/^.*?=\s*/, "").split("(")[0]));
+const TOKEN_RE = /(#[^\n]*)|("""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)|"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_À-ſ][\wÀ-ſ]*)/g;
+const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+function highlight(src) {
+  let out = "", last = 0, prevWord = "";
+  src.replace(TOKEN_RE, (m, com, str, num, word, idx) => {
+    out += esc(src.slice(last, idx));
+    last = idx + m.length;
+    let cls = "";
+    if (com) cls = "tok-com";
+    else if (str) cls = "tok-str";
+    else if (num) cls = "tok-num";
+    else if (word) {
+      if (prevWord === "def") cls = "tok-def";
+      else if (PY_KW.has(word)) cls = "tok-kw";
+      else if (PY_CONST.has(word)) cls = "tok-num";
+      else if (ROBOT_FN.has(word) || word === "robot") cls = "tok-robot";
+      else if (PY_BUILTIN.has(word)) cls = "tok-builtin";
+    }
+    prevWord = word || "";
+    out += cls ? `<span class="${cls}">${esc(m)}</span>` : esc(m);
+    return m;
+  });
+  out += esc(src.slice(last));
+  hlCode.innerHTML = out + "\n";
+}
+function syncScroll() {
   gutterEl.scrollTop = codeEl.scrollTop;
+  hlCode.style.transform = `translate(${-codeEl.scrollLeft}px, ${-codeEl.scrollTop}px)`;
+  const n = errLine || curLine;
+  lineHl.hidden = !n;
+  if (n) {
+    lineHl.classList.toggle("is-err", n === errLine);
+    lineHl.style.transform = `translateY(${12 + (n - 1) * 21 - codeEl.scrollTop}px)`;
+  }
+}
+function scrollToLine(n) {
+  const top = (n - 1) * 21;
+  if (top + 42 > codeEl.scrollTop + codeEl.clientHeight || top < codeEl.scrollTop) codeEl.scrollTop = Math.max(0, top - 3 * 21);
 }
 function markLine(n) {
   errLine = n;
   renderGutter();
-  if (n) {
-    const top = (n - 3) * 21;
-    if (top > codeEl.scrollTop + codeEl.clientHeight - 60 || top < codeEl.scrollTop) codeEl.scrollTop = Math.max(0, top);
-  }
+  if (n) scrollToLine(n);
+}
+function markCurrent(n) {
+  curLine = n;
+  renderGutter();
+  if (n) scrollToLine(n);
 }
 function insertText(t) {
   codeEl.focus();
@@ -1332,9 +1588,10 @@ codeEl.addEventListener("input", () => {
   renderGutter();
   store.set("atelier-bras-robot.code", codeEl.value);
 });
-codeEl.addEventListener("scroll", () => { gutterEl.scrollTop = codeEl.scrollTop; });
+codeEl.addEventListener("scroll", syncScroll);
 codeEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); return; }
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(false); return; }
+  if (codeEl.readOnly) return;
   if (e.key === "Tab" && !e.shiftKey) { e.preventDefault(); insertText("    "); return; }
   if (e.key === "Enter" && !e.shiftKey) {
     const v = codeEl.value, s = codeEl.selectionStart;
@@ -1376,6 +1633,61 @@ function buildFnList() {
   }
 }
 
+/* Largeur de la zone programme : glisser la poignée, flèches du clavier, double-clic pour revenir au défaut */
+function initSplitter() {
+  const app = document.querySelector(".app");
+  const sp = $("splitter");
+  const MIN_LEFT = 300, MIN_RIGHT = 340;
+  function clampWidth(px) {
+    const total = app.clientWidth - sp.offsetWidth;
+    return Math.max(MIN_LEFT, Math.min(total - MIN_RIGHT, px));
+  }
+  function setWidth(px, save) {
+    const w = Math.round(clampWidth(px));
+    app.style.setProperty("--left-w", w + "px");
+    const total = app.clientWidth - sp.offsetWidth;
+    sp.setAttribute("aria-valuenow", String(Math.round((w / total) * 100)));
+    if (save) store.set("atelier-bras-robot.largeur", String(w / total));
+  }
+  function currentWidth() { return document.querySelector(".left").getBoundingClientRect().width; }
+  const saved = Number(store.get("atelier-bras-robot.largeur"));
+  if (saved > 0 && saved < 1) setWidth(saved * (app.clientWidth - sp.offsetWidth), false);
+
+  let startX = 0, startW = 0;
+  sp.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = currentWidth();
+    sp.setPointerCapture(e.pointerId);
+    sp.classList.add("is-dragging");
+    document.body.classList.add("is-resizing");
+  });
+  sp.addEventListener("pointermove", (e) => {
+    if (!sp.hasPointerCapture(e.pointerId)) return;
+    setWidth(startW + e.clientX - startX, false);
+  });
+  const end = (e) => {
+    if (!sp.classList.contains("is-dragging")) return;
+    sp.classList.remove("is-dragging");
+    document.body.classList.remove("is-resizing");
+    setWidth(currentWidth(), true);
+  };
+  sp.addEventListener("pointerup", end);
+  sp.addEventListener("pointercancel", end);
+  sp.addEventListener("dblclick", () => {
+    app.style.removeProperty("--left-w");
+    store.set("atelier-bras-robot.largeur", "");
+  });
+  sp.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 80 : 24;
+    if (e.key === "ArrowLeft") { e.preventDefault(); setWidth(currentWidth() - step, true); }
+    if (e.key === "ArrowRight") { e.preventDefault(); setWidth(currentWidth() + step, true); }
+  });
+  window.addEventListener("resize", () => {
+    if (app.style.getPropertyValue("--left-w")) setWidth(currentWidth(), false);
+  });
+}
+
 /* ============================================================
    10. Démarrage
    ============================================================ */
@@ -1384,7 +1696,12 @@ function boot() {
   codeEl.value = store.get("atelier-bras-robot.code") || EXAMPLE;
   renderGutter();
 
-  runBtn.addEventListener("click", run);
+  runBtn.addEventListener("click", () => run(false));
+  stepBtn.addEventListener("click", stepClick);
+  contBtn.addEventListener("click", () => resumeFromPause(false));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "F10") { e.preventDefault(); if (!stepBtn.disabled) stepClick(); }
+  });
   $("resetBtn").addEventListener("click", () => {
     if (state.running) stop();
     resetWorld();
@@ -1398,6 +1715,34 @@ function boot() {
     con.line("Exemple rechargé dans l'éditeur.", "sys");
   });
   $("clearBtn").addEventListener("click", () => con.clear());
+  initSplitter();
+  const conPanel = document.querySelector(".console-panel"), conEl = $("console");
+  const conToggle = $("conToggle"), conBadge = $("conBadge"), clearBtn = $("clearBtn");
+  const setConsole = (open) => {
+    conEl.hidden = !open;
+    clearBtn.hidden = !open;
+    conPanel.classList.toggle("is-collapsed", !open);
+    conToggle.textContent = open ? "Masquer" : "Afficher";
+    conToggle.setAttribute("aria-expanded", String(open));
+    if (open) conBadge.hidden = true;
+    store.set("atelier-bras-robot.console", open ? "1" : "0");
+  };
+  conToggle.addEventListener("click", () => setConsole(conEl.hidden));
+  setConsole(store.get("atelier-bras-robot.console") !== "0");
+  con.onNotify = (cls) => {
+    if (!conEl.hidden) return;
+    if (cls === "err") setConsole(true);
+    else conBadge.hidden = false;
+  };
+  const fnToggle = $("fnToggle"), fnList = $("fnList");
+  const setFns = (open) => {
+    fnList.hidden = !open;
+    fnToggle.textContent = open ? "Masquer" : "Afficher";
+    fnToggle.setAttribute("aria-expanded", String(open));
+    store.set("atelier-bras-robot.fns", open ? "1" : "0");
+  };
+  fnToggle.addEventListener("click", () => setFns(fnList.hidden));
+  setFns(store.get("atelier-bras-robot.fns") !== "0");
   $("speed").addEventListener("change", (e) => { state.speed = Number(e.target.value) || 1; });
   document.querySelectorAll(".view-btn").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 
