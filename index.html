@@ -588,6 +588,8 @@ const FUNCTIONS = [
     doc: "Renvoie la position (x, y, z) de la pince." },
   { sig: "position_objet(<i>nom</i>)", insert: 'x, y, z = position_objet("cube rouge")',
     doc: "Renvoie (x, y, z) d'un cube : \"cube rouge\", \"cube vert\" ou \"cube bleu\"." },
+  { sig: "position_zone(<i>nom</i>)", insert: 'x, y, z = position_zone("zone A")',
+    doc: "Renvoie le centre (x, y, z) d'une zone : \"zone A\", \"zone B\" ou \"zone C\". Ici z = 0 : c'est la surface de la table." },
   { sig: "attendre(<i>secondes</i>)", insert: "attendre(1)",
     doc: "Fait une pause dans le programme." },
 ];
@@ -658,6 +660,12 @@ const R_MIN = 70; // distance minimale à l'axe de la base
 const CUBE = 30;
 const HOME = { x: 180, y: 0, z: 220 };
 const GAP_OPEN = 56, GAP_EMPTY = 2;
+const ZONE_SIZE = 80;
+const ZONES = [
+  { name: "zone A", alias: "zone rouge", color: "#d9443a", x: 120, y: -260 },
+  { name: "zone B", alias: "zone verte", color: "#2f9e5b", x: 220, y: -230 },
+  { name: "zone C", alias: "zone bleue", color: "#2f6fd6", x: 320, y: -170 },
+];
 const CUBE_START = [
   { name: "cube rouge", color: "#d9443a", x: 240, y: 110 },
   { name: "cube vert",  color: "#2f9e5b", x: 280, y: 10 },
@@ -835,6 +843,26 @@ function drawTable() {
     g.fillText(t, 0, 0);
     g.restore();
   }
+  // zones de dépôt : carré de 80 mm, teinte de la couleur associée, lettre au centre
+  for (const z of ZONES) {
+    const [zx, zy] = P(z.x - ZONE_SIZE / 2, z.y + ZONE_SIZE / 2);
+    const side = ZONE_SIZE * S;
+    g.save();
+    g.globalAlpha = 0.16;
+    g.fillStyle = z.color;
+    g.fillRect(zx, zy, side, side);
+    g.globalAlpha = 1;
+    g.strokeStyle = z.color;
+    g.lineWidth = 4;
+    g.strokeRect(zx + 2, zy + 2, side - 4, side - 4);
+    g.restore();
+    g.save();
+    g.globalAlpha = 0.55;
+    text(z.name.slice(-1), z.x, z.y, z.color, "700 64px");
+    g.restore();
+    text(z.name, z.x + ZONE_SIZE / 2 + 14, z.y, z.color, "600 22px");
+  }
+
   axis(440, 0, "#e5484d", "X");
   axis(0, 360, "#30a46c", "Y");
 
@@ -843,7 +871,7 @@ function drawTable() {
   text("x (mm)", -165, -386, ink2, "600 22px");
   for (let y = -300; y <= 300; y += 100) text(String(y), 484, y, ink2);
   text("y (mm)", 484, -360, ink2, "600 22px");
-  text("portée max ≈ 375 mm", 230, -322, cssVar("--accent-strong"), "600 22px");
+  text("portée max ≈ 375 mm", 215, 300, cssVar("--accent-strong"), "600 22px");
 
   if (tableTex) tableTex.needsUpdate = true;
 }
@@ -1225,6 +1253,13 @@ function waitFor(s) { return startAction(s, null); }
 function normalizeName(n) {
   return String(n).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[_\-]+/g, " ").replace(/\s+/g, " ").trim();
 }
+function findZone(name) {
+  const n = normalizeName(name);
+  return ZONES.find((z) => {
+    const a = z.name.toLowerCase(), b = normalizeName(z.alias);
+    return n === a || n === b || "zone " + n === a || "zone " + n === b;
+  }) || null;
+}
 function findObject(name) {
   const n = normalizeName(name);
   return state.cubes.find((c) => c.name === n || c.name === "cube " + n) || null;
@@ -1248,6 +1283,11 @@ window.RobotAPI = {
   closeGripper,
   waitFor,
   position: () => { const p = fk(state.joints); return [r1(p.x), r1(p.y), r1(p.z)]; },
+  zonePosition(name) {
+    const z = findZone(name);
+    if (!z) return { err: `Zone « ${name} » introuvable. Zones disponibles : ${ZONES.map((z) => '"' + z.name + '"').join(", ")}.` };
+    return { pos: [z.x, z.y, 0] };
+  },
   objectPosition(name) {
     const c = findObject(name);
     if (!c) return { err: `Objet « ${name} » introuvable. Objets disponibles : ${state.cubes.map((c) => '"' + c.name + '"').join(", ")}.` };
@@ -1319,6 +1359,15 @@ function robotModule(name) {
       throw new Sk.builtin.TypeError('position_objet() attend un nom entre guillemets, par exemple position_objet("cube rouge").');
     }
     var res = R.objectPosition(Sk.ffi.remapToJs(nom));
+    if (res.err) throw new Sk.builtin.ValueError(res.err);
+    return tuple3(res.pos);
+  });
+  mod.position_zone = new Sk.builtin.func(function (nom) {
+    nbArgs(arguments, 1, "position_zone", 'position_zone("zone A")');
+    if (!Sk.builtin.checkString(nom)) {
+      throw new Sk.builtin.TypeError('position_zone() attend un nom entre guillemets, par exemple position_zone("zone A").');
+    }
+    var res = R.zonePosition(Sk.ffi.remapToJs(nom));
     if (res.err) throw new Sk.builtin.ValueError(res.err);
     return tuple3(res.pos);
   });
