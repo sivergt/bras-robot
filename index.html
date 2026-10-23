@@ -1,0 +1,1431 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<title>Atelier Bras Robot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout : poste de TP — programme à gauche, cellule robotisée à droite, console sur toute la largeur en bas. */
+:root {
+  --bg: #e9edf1;
+  --surface: #ffffff;
+  --surface-2: #f4f6f8;
+  --line: #d3dae1;
+  --ink: #16202a;
+  --ink-2: #566472;
+  --accent: #f0a500;
+  --accent-strong: #c98700;
+  --accent-ink: #1d1400;
+  --danger: #c6392a;
+  --ok: #2b8a52;
+  --note: #8a6a00;
+  --scene-bg: #d9e0e6;
+  --table: #f1f3f5;
+  --grid-fine: #dfe4e9;
+  --grid-major: #c3ccd5;
+  --code-bg: #fbfcfd;
+  --gutter: #8a97a3;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Barlow", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1418; --surface: #171e25; --surface-2: #1c252d; --line: #2a3641;
+    --ink: #e4e9ee; --ink-2: #97a5b2; --accent: #f5b83d; --accent-strong: #ffcb63; --accent-ink: #1d1400;
+    --danger: #ff7a66; --ok: #5cc98a; --note: #e0bd5a;
+    --scene-bg: #11181e; --table: #1d262e; --grid-fine: #26313b; --grid-major: #3a4855;
+    --code-bg: #131a20; --gutter: #5f6e7b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1418; --surface: #171e25; --surface-2: #1c252d; --line: #2a3641;
+  --ink: #e4e9ee; --ink-2: #97a5b2; --accent: #f5b83d; --accent-strong: #ffcb63; --accent-ink: #1d1400;
+  --danger: #ff7a66; --ok: #5cc98a; --note: #e0bd5a;
+  --scene-bg: #11181e; --table: #1d262e; --grid-fine: #26313b; --grid-major: #3a4855;
+  --code-bg: #131a20; --gutter: #5f6e7b;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  box-sizing: border-box;
+}
+*, *::before, *::after { box-sizing: border-box; }
+
+.app {
+  height: 100%;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(340px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-rows: auto minmax(0, 1fr) 170px;
+  grid-template-areas:
+    "top top"
+    "left scene"
+    "console console";
+}
+
+/* Barre du haut */
+.top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; margin-right: auto; min-width: 0; }
+.brand h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 1;
+}
+.brand h1 span { color: var(--accent-strong); }
+.brand p { margin: 0; color: var(--ink-2); font-size: 14px; }
+.controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+button, select {
+  font: inherit;
+  color: inherit;
+}
+.btn {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.1;
+}
+.btn:hover { border-color: var(--ink-2); }
+.btn:focus-visible, select:focus-visible, .fn:focus-visible, textarea:focus-visible, .view-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.btn-run { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); min-width: 132px; justify-content: center; }
+.btn-run:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.btn-run.is-running { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--ink-2); padding-inline: 8px; }
+.btn-ghost:hover { color: var(--ink); border-color: var(--line); }
+.btn svg { width: 14px; height: 14px; flex: none; }
+.speed { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 14px; }
+.speed select {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* Panneaux */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  min-height: 38px;
+}
+.label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.filename { font-family: var(--font-mono); font-size: 13px; color: var(--ink); }
+.pill {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.pill[data-state="run"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.pill[data-state="err"] { color: #fff; background: var(--danger); border-color: var(--danger); }
+.pill[data-state="ok"] { color: var(--ok); border-color: var(--ok); }
+
+.left { grid-area: left; display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
+.editor-panel { flex: 1 1 60%; }
+.editor {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  background: var(--code-bg);
+  position: relative;
+}
+.gutter {
+  flex: none;
+  width: 46px;
+  padding: 12px 8px 12px 0;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--gutter);
+  overflow: hidden;
+  user-select: none;
+  border-right: 1px solid var(--line);
+}
+.gutter div { height: 21px; }
+.gutter .err { color: #fff; background: var(--danger); border-radius: 0 3px 3px 0; padding-right: 4px; margin-right: -8px; }
+.gutter .cur { color: var(--accent-ink); background: var(--accent); border-radius: 0 3px 3px 0; padding-right: 4px; margin-right: -8px; }
+textarea#code {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 21px;
+  padding: 12px 14px;
+  tab-size: 4;
+  white-space: pre;
+  overflow: auto;
+}
+textarea#code:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+
+.fn-panel { flex: 0 1 auto; max-height: 42%; }
+.fn-list { overflow: auto; padding: 4px 0; margin: 0; list-style: none; }
+.fn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.fn:hover { background: var(--surface-2); }
+.fn code { font-family: var(--font-mono); font-size: 13px; color: var(--ink); font-weight: 600; }
+.fn code i { font-style: normal; font-weight: 400; color: var(--accent-strong); }
+.fn span { font-size: 13.5px; color: var(--ink-2); line-height: 1.35; }
+.frame-note {
+  font-size: 13px;
+  color: var(--ink-2);
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--line);
+  line-height: 1.4;
+}
+.frame-note b { color: var(--ink); font-weight: 600; }
+.ax-x { color: #e5484d; font-weight: 600; }
+.ax-y { color: #30a46c; font-weight: 600; }
+.ax-z { color: #3e63dd; font-weight: 600; }
+
+/* Scène */
+.scene-panel { grid-area: scene; position: relative; }
+#scene { position: absolute; inset: 0; }
+#scene canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  max-width: calc(100% - 20px);
+}
+.hud .row { display: flex; gap: 12px; }
+.hud .k { color: var(--ink-2); }
+.hud .v { color: var(--ink); min-width: 5.5ch; text-align: right; display: inline-block; }
+.hud .grip { color: var(--ink-2); }
+.hud .grip b { color: var(--ink); font-weight: 600; }
+.views {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.view-btn {
+  border: 0;
+  background: transparent;
+  padding: 5px 10px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.view-btn + .view-btn { border-left: 1px solid var(--line); }
+.view-btn:hover { color: var(--ink); background: var(--surface-2); }
+.hint {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.boot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px;
+  color: var(--ink-2);
+  font-size: 14px;
+  background: var(--scene-bg);
+}
+.boot strong { display: block; color: var(--ink); font-family: var(--font-display); font-size: 20px; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
+
+/* Console */
+.console-panel { grid-area: console; }
+#console {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  background: var(--code-bg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+#console .sys { color: var(--ink-2); }
+#console .ok { color: var(--ok); }
+#console .note { color: var(--note); }
+#console .err { color: var(--danger); }
+#console .err-hint { color: var(--danger); opacity: 0.85; font-family: var(--font-body); font-size: 13.5px; }
+
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 340px auto 200px;
+    grid-template-areas: "top" "scene" "left" "console";
+  }
+  .editor-panel { min-height: 300px; }
+  .fn-panel { max-height: none; }
+  .brand { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Atelier <span>Bras Robot</span></h1>
+      <p>Programmez le bras en Python, puis regardez-le travailler.</p>
+    </div>
+    <div class="controls">
+      <button class="btn btn-run" id="runBtn" type="button" title="Exécuter (Ctrl + Entrée)">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg>
+        <span>Exécuter</span>
+      </button>
+      <button class="btn" id="resetBtn" type="button" title="Remet le robot et les cubes à leur place de départ">
+        <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M1.8 1.2v3.4h3.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        Réinitialiser
+      </button>
+      <label class="speed" for="speed">Vitesse
+        <select id="speed">
+          <option value="0.5">× 0,5</option>
+          <option value="1" selected>× 1</option>
+          <option value="2">× 2</option>
+          <option value="4">× 4</option>
+        </select>
+      </label>
+      <button class="btn btn-ghost" id="exampleBtn" type="button" title="Remplace votre programme par l'exemple de départ">Recharger l'exemple</button>
+    </div>
+  </header>
+
+  <div class="left">
+    <section class="panel editor-panel" aria-label="Programme Python">
+      <div class="panel-head">
+        <span class="label">Programme</span>
+        <span class="filename">programme.py</span>
+        <span class="pill" id="status" data-state="idle">Prêt</span>
+      </div>
+      <div class="editor">
+        <div class="gutter" id="gutter" aria-hidden="true"></div>
+        <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code Python du programme"></textarea>
+      </div>
+    </section>
+
+    <section class="panel fn-panel" aria-label="Fonctions disponibles">
+      <div class="panel-head">
+        <span class="label">Fonctions du module robot</span>
+        <span class="pill">clic = insérer</span>
+      </div>
+      <ul class="fn-list" id="fnList"></ul>
+      <div class="frame-note">
+        <b>Repère</b> : origine au centre de la base, <span class="ax-x">X</span> vers l'avant, <span class="ax-y">Y</span> vers la gauche, <span class="ax-z">Z</span> vers le haut. Unités en millimètres. Les cubes font 30 mm de côté ; la portée maximale au ras de la table est d'environ 375 mm.
+      </div>
+    </section>
+  </div>
+
+  <section class="panel scene-panel" aria-label="Simulation 3D du bras robot">
+    <div id="scene"></div>
+    <div class="hud" id="hud">
+      <div class="row">
+        <span><span class="k">X</span> <span class="v" id="hx">0</span></span>
+        <span><span class="k">Y</span> <span class="v" id="hy">0</span></span>
+        <span><span class="k">Z</span> <span class="v" id="hz">0</span></span>
+        <span class="k">mm</span>
+      </div>
+      <div class="grip" id="hgrip">Pince <b>ouverte</b> · aucun objet</div>
+    </div>
+    <div class="views" role="group" aria-label="Point de vue">
+      <button class="view-btn" type="button" data-view="persp">3D</button>
+      <button class="view-btn" type="button" data-view="front">Face</button>
+      <button class="view-btn" type="button" data-view="top">Dessus</button>
+    </div>
+    <div class="hint">Glisser pour tourner · molette pour zoomer · clic droit pour décaler</div>
+    <div class="boot" id="boot"><div><strong>Chargement de la simulation</strong>Les bibliothèques 3D et Python se téléchargent…</div></div>
+  </section>
+
+  <section class="panel console-panel" aria-label="Console">
+    <div class="panel-head">
+      <span class="label">Console</span>
+      <button class="btn btn-ghost" id="clearBtn" type="button" style="margin-left:auto;font-size:13px;padding:2px 8px">Effacer</button>
+    </div>
+    <pre id="console" aria-live="polite"></pre>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
+
+<script>
+(function () {
+"use strict";
+
+/* ============================================================
+   1. Exemple de départ et liste des fonctions
+   ============================================================ */
+const EXAMPLE = `# Exemple : saisir le cube rouge et le déposer ailleurs
+from robot import *
+
+position_repos()
+ouvrir_pince()
+
+# 1. Où se trouve le cube rouge ?
+x, y, z = position_objet("cube rouge")
+print("Cube rouge en", x, y, z)
+
+# 2. Se placer 80 mm au-dessus du cube, puis descendre
+deplacer_vers(x, y, z + 80)
+deplacer_vers(x, y, z)
+
+# 3. Saisir le cube et remonter
+fermer_pince()
+deplacer_vers(x, y, z + 80)
+
+# 4. Aller au point de dépôt et poser le cube
+deplacer_vers(300, -150, z + 80)
+deplacer_vers(300, -150, z)
+ouvrir_pince()
+
+# 5. Dégager la pince et revenir au repos
+deplacer_vers(300, -150, z + 80)
+position_repos()
+print("Position finale de la pince :", obtenir_position())
+`;
+
+const FUNCTIONS = [
+  { sig: "deplacer_vers(<i>x, y, z</i>)", insert: "deplacer_vers(200, 0, 100)",
+    doc: "Déplace le centre de la pince au point (x, y, z), en millimètres." },
+  { sig: "position_repos()", insert: "position_repos()",
+    doc: "Ramène le bras dans sa position de départ, au-dessus de la base." },
+  { sig: "ouvrir_pince()", insert: "ouvrir_pince()",
+    doc: "Ouvre la pince. Si elle tenait un objet, elle le lâche." },
+  { sig: "fermer_pince()", insert: "fermer_pince()",
+    doc: "Ferme la pince. Un cube bien centré entre les doigts est saisi." },
+  { sig: "obtenir_position()", insert: "x, y, z = obtenir_position()",
+    doc: "Renvoie la position actuelle de la pince sous la forme (x, y, z)." },
+  { sig: "position_objet(<i>nom</i>)", insert: 'x, y, z = position_objet("cube rouge")',
+    doc: "Renvoie la position (x, y, z) du centre d'un objet : \"cube rouge\", \"cube vert\" ou \"cube bleu\"." },
+  { sig: "attendre(<i>secondes</i>)", insert: "attendre(1)",
+    doc: "Met le programme en pause pendant la durée indiquée." },
+];
+
+/* ============================================================
+   2. Utilitaires
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const r1 = (v) => Math.round(v * 10) / 10;
+const fmt = (v) => {
+  const n = r1(v);
+  return (Object.is(n, -0) ? 0 : n).toString().replace(".", ",");
+};
+const deg = (rad) => rad * 180 / Math.PI;
+const rad = (d) => d * Math.PI / 180;
+const ease = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* stockage indisponible */ } },
+};
+
+/* ============================================================
+   3. Console
+   ============================================================ */
+const con = (function () {
+  const el = $("console");
+  let openLine = null;
+  function scroll() { el.scrollTop = el.scrollHeight; }
+  function line(text, cls) {
+    openLine = null;
+    const d = document.createElement("div");
+    if (cls) d.className = cls;
+    d.textContent = text;
+    el.appendChild(d);
+    scroll();
+    return d;
+  }
+  function write(text) { // sortie de print(), qui peut arriver morceau par morceau
+    const parts = String(text).split("\n");
+    parts.forEach((p, i) => {
+      if (!openLine) {
+        openLine = document.createElement("div");
+        el.appendChild(openLine);
+      }
+      openLine.textContent += p;
+      if (i < parts.length - 1) openLine = null;
+    });
+    scroll();
+  }
+  function clear() { el.textContent = ""; openLine = null; }
+  return { line, write, clear };
+})();
+
+/* ============================================================
+   4. Modèle du robot (unités : mm, radians)
+   ============================================================ */
+const D1 = 160;   // hauteur de l'épaule
+const L2 = 200;   // bras
+const L3 = 180;   // avant-bras
+const L4 = 110;   // du poignet au centre de la pince (pince verticale)
+const R_MIN = 70; // distance minimale à l'axe de la base
+const CUBE = 30;
+const HOME = { x: 180, y: 0, z: 220 };
+const GAP_OPEN = 56, GAP_EMPTY = 2;
+const CUBE_START = [
+  { name: "cube rouge", color: "#d9443a", x: 240, y: 110 },
+  { name: "cube vert",  color: "#2f9e5b", x: 280, y: 10 },
+  { name: "cube bleu",  color: "#2f6fd6", x: 200, y: -90 },
+];
+
+function ik(x, y, z) {
+  const r = Math.hypot(x, y);
+  const t1 = Math.atan2(y, x);
+  const dx = r, dz = z + L4 - D1;
+  const D = Math.hypot(dx, dz);
+  if (D > L2 + L3 - 0.5) return { err: "far", D };
+  if (D < Math.abs(L2 - L3) + 5) return { err: "near", D };
+  const c = (D * D - L2 * L2 - L3 * L3) / (2 * L2 * L3);
+  const q = Math.acos(Math.max(-1, Math.min(1, c)));
+  const phi = Math.atan2(dz, dx);
+  const psi = Math.atan2(L3 * Math.sin(q), L2 + L3 * Math.cos(q));
+  const a2 = phi + psi;       // angle absolu du bras
+  const a3 = a2 - q;          // angle absolu de l'avant-bras (coude en haut)
+  return { t1, a2, a3 };
+}
+function fk(j) {
+  const r = L2 * Math.cos(j.a2) + L3 * Math.cos(j.a3);
+  return {
+    x: r * Math.cos(j.t1),
+    y: r * Math.sin(j.t1),
+    z: D1 + L2 * Math.sin(j.a2) + L3 * Math.sin(j.a3) - L4,
+  };
+}
+
+const state = {
+  joints: ik(HOME.x, HOME.y, HOME.z),
+  gap: GAP_OPEN,
+  held: null,      // cube tenu
+  heldDz: 0,
+  cubes: [],
+  action: null,    // mouvement en cours { update(p), dur, elapsed, resolve, reject }
+  speed: 1,
+  running: false,
+};
+
+/* ============================================================
+   5. Scène 3D
+   ============================================================ */
+let renderer, scene, camera, controls, world, tableTex, tableCanvas;
+const parts = {};
+const TABLE = { x0: -200, x1: 500, y0: -400, y1: 400 };
+
+function initScene() {
+  const host = $("scene");
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  host.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(40, 1, 5, 20000);
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.12;
+  controls.maxPolarAngle = Math.PI * 0.495;
+  controls.minDistance = 250;
+  controls.maxDistance = 3000;
+  setView("persp");
+
+  scene.add(new THREE.HemisphereLight(0xf4f7fb, 0x8a8f96, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+  sun.position.set(450, 1100, 600);
+  sun.target.position.set(150, 0, 0);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -650, right: 650, top: 650, bottom: -650, near: 200, far: 2600 });
+  sun.shadow.bias = -0.0005;
+  scene.add(sun, sun.target);
+
+  // Repère du robot : X avant, Y gauche, Z haut  →  Three.js est en Y haut
+  world = new THREE.Group();
+  world.rotation.x = -Math.PI / 2;
+  scene.add(world);
+
+  buildTable();
+  buildGizmo();
+  buildRobot();
+  buildCubes();
+
+  new ResizeObserver(resize).observe(host);
+  resize();
+  applyTheme();
+}
+
+function resize() {
+  const host = $("scene");
+  const w = host.clientWidth, h = host.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+// position robot (x, y, z) → coordonnées Three.js
+const toThree = (x, y, z) => new THREE.Vector3(x, z, -y);
+// couleur CSS (sRGB) → couleur de matériau (linéaire)
+const col = (c) => new THREE.Color(c).convertSRGBToLinear();
+
+function setView(name) {
+  const target = toThree(190, 0, 70);
+  let pos;
+  if (name === "front") pos = toThree(1050, 0, 260);
+  else if (name === "top") pos = toThree(191, -1, 1150);
+  else pos = toThree(760, -640, 520);
+  camera.position.copy(pos);
+  controls.target.copy(target);
+  controls.update();
+}
+
+function drawTable() {
+  const S = 2; // pixels par mm
+  const W = (TABLE.x1 - TABLE.x0) * S, H = (TABLE.y1 - TABLE.y0) * S;
+  const c = tableCanvas;
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const P = (x, y) => [(x - TABLE.x0) * S, (TABLE.y1 - y) * S];
+
+  g.fillStyle = cssVar("--table");
+  g.fillRect(0, 0, W, H);
+
+  // quadrillage : fin tous les 50 mm, marqué tous les 100 mm
+  for (let step of [50, 100]) {
+    g.strokeStyle = cssVar(step === 50 ? "--grid-fine" : "--grid-major");
+    g.lineWidth = step === 50 ? 1.5 : 2.5;
+    g.beginPath();
+    for (let x = Math.ceil(TABLE.x0 / step) * step; x <= TABLE.x1; x += step) {
+      const [px] = P(x, 0); g.moveTo(px, 0); g.lineTo(px, H);
+    }
+    for (let y = Math.ceil(TABLE.y0 / step) * step; y <= TABLE.y1; y += step) {
+      const [, py] = P(0, y); g.moveTo(0, py); g.lineTo(W, py);
+    }
+    g.stroke();
+  }
+
+  // cercle de portée maximale
+  g.save();
+  g.strokeStyle = cssVar("--accent");
+  g.lineWidth = 4;
+  g.setLineDash([18, 14]);
+  const [ox, oy] = P(0, 0);
+  g.beginPath(); g.arc(ox, oy, 375 * S, 0, Math.PI * 2); g.stroke();
+  g.restore();
+
+  // axes X et Y peints sur la table
+  function axis(x2, y2, color, label) {
+    const [ax, ay] = P(x2, y2);
+    g.strokeStyle = color; g.fillStyle = color; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(ox, oy); g.lineTo(ax, ay); g.stroke();
+    const ang = Math.atan2(ay - oy, ax - ox);
+    g.beginPath();
+    g.moveTo(ax + Math.cos(ang) * 22, ay + Math.sin(ang) * 22);
+    g.lineTo(ax + Math.cos(ang + 2.4) * 18, ay + Math.sin(ang + 2.4) * 18);
+    g.lineTo(ax + Math.cos(ang - 2.4) * 18, ay + Math.sin(ang - 2.4) * 18);
+    g.closePath(); g.fill();
+    text(label, x2 + (label === "X" ? 22 : 0), y2 + (label === "Y" ? 22 : 0), color, "700 40px");
+  }
+  // texte lisible depuis l'avant de la table (côté +X)
+  function text(t, x, y, color, weight) {
+    const [px, py] = P(x, y);
+    g.save();
+    g.translate(px, py);
+    g.rotate(-Math.PI / 2);
+    g.fillStyle = color;
+    g.font = (weight || "500 22px") + " 'JetBrains Mono', ui-monospace, monospace";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText(t, 0, 0);
+    g.restore();
+  }
+  axis(440, 0, "#e5484d", "X");
+  axis(0, 360, "#30a46c", "Y");
+
+  const ink2 = cssVar("--ink-2");
+  for (let x = -100; x <= 400; x += 100) if (x !== 0) text(String(x), x, -386, ink2);
+  text("x (mm)", -165, -386, ink2, "600 22px");
+  for (let y = -300; y <= 300; y += 100) text(String(y), 484, y, ink2);
+  text("y (mm)", 484, -360, ink2, "600 22px");
+  text("portée max ≈ 375 mm", 230, -322, cssVar("--accent-strong"), "600 22px");
+
+  if (tableTex) tableTex.needsUpdate = true;
+}
+
+function buildTable() {
+  tableCanvas = document.createElement("canvas");
+  drawTable();
+  tableTex = new THREE.CanvasTexture(tableCanvas);
+  tableTex.encoding = THREE.sRGBEncoding;
+  tableTex.anisotropy = 8;
+  const w = TABLE.x1 - TABLE.x0, h = TABLE.y1 - TABLE.y0;
+  const top = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshStandardMaterial({ map: tableTex, roughness: 0.9 })
+  );
+  top.position.set((TABLE.x0 + TABLE.x1) / 2, (TABLE.y0 + TABLE.y1) / 2, 0);
+  top.receiveShadow = true;
+  world.add(top);
+  parts.tableSide = new THREE.MeshStandardMaterial({ color: 0x9aa4ae, roughness: 0.8 });
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(w, h, 24), parts.tableSide);
+  slab.position.set(top.position.x, top.position.y, -12.2);
+  world.add(slab);
+
+  // repère visé : anneau sur la table à la verticale de la pince
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(7, 11, 32),
+    new THREE.MeshBasicMaterial({ color: col(0xf0a500), transparent: true, opacity: 0.9 })
+  );
+  ring.position.z = 0.6;
+  world.add(ring);
+  parts.ring = ring;
+}
+
+function makeLabel(textValue, color) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  g.fillStyle = color;
+  g.font = "700 44px 'JetBrains Mono', ui-monospace, monospace";
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(textValue, 32, 34);
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+  s.scale.set(34, 34, 1);
+  return s;
+}
+
+function buildGizmo() {
+  const g = new THREE.Group();
+  g.position.set(-140, -330, 1);
+  const axes = [
+    [new THREE.Vector3(1, 0, 0), 0xe5484d, "X", "#e5484d"],
+    [new THREE.Vector3(0, 1, 0), 0x30a46c, "Y", "#30a46c"],
+    [new THREE.Vector3(0, 0, 1), 0x3e63dd, "Z", "#3e63dd"],
+  ];
+  for (const [dir, col, name, css] of axes) {
+    g.add(new THREE.ArrowHelper(dir, new THREE.Vector3(), 80, col, 18, 10));
+    const l = makeLabel(name, css);
+    l.position.copy(dir.clone().multiplyScalar(100));
+    g.add(l);
+  }
+  world.add(g);
+}
+
+function buildRobot() {
+  const body = new THREE.MeshStandardMaterial({ color: col(0xe8ecf0), roughness: 0.45, metalness: 0.05 });
+  const dark = new THREE.MeshStandardMaterial({ color: col(0x2c3640), roughness: 0.6 });
+  const amber = new THREE.MeshStandardMaterial({ color: col(0xf0a500), roughness: 0.4 });
+  const shadow = (m) => { m.castShadow = true; m.receiveShadow = true; return m; };
+
+  // cylindre le long d'un axe du repère robot
+  function cyl(r, len, axis, mat) {
+    const m = shadow(new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 40), mat));
+    if (axis === "z") m.rotation.x = Math.PI / 2;
+    if (axis === "x") m.rotation.z = Math.PI / 2;
+    return m;
+  }
+  function box(lx, ly, lz, mat) {
+    return shadow(new THREE.Mesh(new THREE.BoxGeometry(lx, ly, lz), mat));
+  }
+  function joint(r, len) { // carter d'articulation avec flasques ambrées
+    const g = new THREE.Group();
+    g.add(cyl(r, len, "y", body));
+    g.add(cyl(r * 0.62, len + 3, "y", amber));
+    return g;
+  }
+
+  const base = cyl(78, 26, "z", dark);
+  base.position.z = 13;
+  world.add(base);
+
+  const j1 = new THREE.Group();
+  world.add(j1);
+  const turret = cyl(50, 140, "z", body);
+  turret.position.z = 90;
+  j1.add(turret);
+  const ringTop = cyl(52, 8, "z", amber);
+  ringTop.position.z = 24;
+  j1.add(ringTop);
+  const sh = joint(46, 104);
+  sh.position.z = D1;
+  j1.add(sh);
+
+  const shoulder = new THREE.Group();
+  shoulder.position.z = D1;
+  j1.add(shoulder);
+  const upper = box(L2, 56, 44, body);
+  upper.position.x = L2 / 2;
+  shoulder.add(upper);
+  const el = joint(36, 84);
+  el.position.x = L2;
+  shoulder.add(el);
+
+  const elbow = new THREE.Group();
+  elbow.position.x = L2;
+  shoulder.add(elbow);
+  const fore = box(L3, 44, 38, body);
+  fore.position.x = L3 / 2;
+  elbow.add(fore);
+  const wr = joint(28, 66);
+  wr.position.x = L3;
+  elbow.add(wr);
+
+  // le repère du poignet a son axe X dirigé vers le bas
+  const wrist = new THREE.Group();
+  wrist.position.x = L3;
+  elbow.add(wrist);
+  const column = box(60, 34, 34, dark);
+  column.position.x = 30;
+  wrist.add(column);
+  const palm = box(14, 84, 34, body);
+  palm.position.x = 67;
+  wrist.add(palm);
+  const fingerL = box(47, 8, 22, dark);
+  const fingerR = box(47, 8, 22, dark);
+  fingerL.position.x = fingerR.position.x = 98.5;
+  wrist.add(fingerL, fingerR);
+
+  Object.assign(parts, { j1, shoulder, elbow, wrist, fingerL, fingerR });
+}
+
+function buildCubes() {
+  for (const def of CUBE_START) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(CUBE, CUBE, CUBE),
+      new THREE.MeshStandardMaterial({ color: col(def.color), roughness: 0.5 })
+    );
+    mesh.castShadow = mesh.receiveShadow = true;
+    world.add(mesh);
+    state.cubes.push({ name: def.name, def, mesh, x: def.x, y: def.y, z: CUBE / 2, yaw: 0, vz: 0 });
+  }
+}
+
+function applyPose() {
+  const j = state.joints;
+  parts.j1.rotation.z = j.t1;
+  parts.shoulder.rotation.y = -j.a2;
+  parts.elbow.rotation.y = -(j.a3 - j.a2);
+  parts.wrist.rotation.y = Math.PI / 2 + j.a3; // pince toujours verticale
+  const off = state.gap / 2 + 4;
+  parts.fingerL.position.y = off;
+  parts.fingerR.position.y = -off;
+
+  const p = fk(j);
+  parts.ring.position.x = p.x;
+  parts.ring.position.y = p.y;
+
+  if (state.held) {
+    const c = state.held;
+    c.x = p.x; c.y = p.y; c.z = p.z + state.heldDz; c.yaw = j.t1;
+  }
+  for (const c of state.cubes) {
+    c.mesh.position.set(c.x, c.y, c.z);
+    c.mesh.rotation.z = c.yaw;
+  }
+}
+
+// Gravité simplifiée : un cube libre tombe jusqu'à la table ou sur un autre cube
+function settle(dt) {
+  for (const c of state.cubes) {
+    if (c === state.held) continue;
+    let support = 0;
+    const bottom = c.z - CUBE / 2;
+    for (const o of state.cubes) {
+      if (o === c) continue;
+      const top = o.z + CUBE / 2;
+      if (Math.abs(o.x - c.x) < CUBE * 0.9 && Math.abs(o.y - c.y) < CUBE * 0.9 && top <= bottom + 2) {
+        support = Math.max(support, top);
+      }
+    }
+    if (bottom > support + 0.01) {
+      c.vz -= 9810 * dt;
+      c.z += c.vz * dt;
+      if (c.z - CUBE / 2 <= support) { c.z = support + CUBE / 2; c.vz = 0; }
+    } else {
+      c.vz = 0;
+    }
+  }
+}
+
+let lastHud = "";
+function updateHud() {
+  const p = fk(state.joints);
+  const g = state.gap > 40 ? "ouverte" : state.held ? "fermée" : state.gap < 8 ? "fermée" : "en mouvement";
+  const obj = state.held ? `tient le <b>${state.held.name}</b>` : "aucun objet";
+  const key = [fmt(p.x), fmt(p.y), fmt(p.z), g, obj].join("|");
+  if (key === lastHud) return;
+  lastHud = key;
+  $("hx").textContent = fmt(p.x);
+  $("hy").textContent = fmt(p.y);
+  $("hz").textContent = fmt(p.z);
+  $("hgrip").innerHTML = `Pince <b>${g}</b> · ${obj}`;
+}
+
+let lastT = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000);
+  lastT = t;
+  const a = state.action;
+  if (a) {
+    a.elapsed += dt * state.speed;
+    const p = a.dur > 0 ? Math.min(1, a.elapsed / a.dur) : 1;
+    if (a.update) a.update(ease(p), p);
+    if (p >= 1) {
+      state.action = null;
+      a.resolve();
+    }
+  }
+  settle(dt * state.speed);
+  applyPose();
+  updateHud();
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+function applyTheme() {
+  if (!scene) return;
+  scene.background = new THREE.Color(cssVar("--scene-bg"));
+  parts.tableSide.color = col(cssVar("--grid-major"));
+  drawTable();
+}
+
+/* ============================================================
+   6. Actions du robot (appelées par le module Python)
+   ============================================================ */
+function startAction(dur, update) {
+  return new Promise((resolve, reject) => {
+    if (!state.running) { reject(new Error("__stop__")); return; }
+    state.action = { dur, elapsed: 0, update, resolve, reject };
+  });
+}
+function abortAction() {
+  const a = state.action;
+  state.action = null;
+  if (a) a.reject(new Error("__stop__"));
+}
+
+function minZ() { return state.held ? Math.max(12, CUBE / 2 - state.heldDz) : 12; }
+
+function checkTarget(x, y, z) {
+  const P = `(${fmt(x)}, ${fmt(y)}, ${fmt(z)})`;
+  if (![x, y, z].every(Number.isFinite)) return "Les coordonnées doivent être des nombres.";
+  const zmin = minZ();
+  if (z < zmin) {
+    return state.held
+      ? `Position ${P} impossible : le ${state.held.name} toucherait la table. Il faut z ≥ ${fmt(zmin)} mm.`
+      : `Position ${P} impossible : la pince toucherait la table. Il faut z ≥ ${fmt(zmin)} mm.`;
+  }
+  const r = Math.hypot(x, y);
+  if (r < R_MIN) return `Position ${P} trop proche de la base du robot (à ${fmt(r)} mm de l'axe, minimum ${R_MIN} mm).`;
+  if (Math.abs(deg(Math.atan2(y, x))) > 170) return `Position ${P} juste derrière le robot : la base ne tourne que de -170° à +170°.`;
+  const s = ik(x, y, z);
+  if (s.err === "far") return `Position ${P} hors de portée du robot : le point est trop loin (portée maximale ≈ ${L2 + L3} mm depuis l'épaule, à ${D1} mm de hauteur).`;
+  if (s.err === "near") return `Position ${P} hors de portée : le point est trop près de l'épaule du robot.`;
+  const q4 = deg(-Math.PI / 2 - s.a3);
+  if (Math.abs(q4) > 130 || deg(s.a2) < -20 || deg(s.a2) > 160) return `Position ${P} inaccessible avec la pince tournée vers le bas.`;
+  return null;
+}
+
+function moveTo(x, y, z) {
+  const target = ik(x, y, z);
+  const from = { ...state.joints };
+  const delta = Math.max(
+    Math.abs(target.t1 - from.t1),
+    Math.abs(target.a2 - from.a2),
+    Math.abs(target.a3 - from.a3)
+  );
+  const dur = Math.max(0.35, deg(delta) / 75);
+  return startAction(dur, (e) => {
+    state.joints = {
+      t1: from.t1 + (target.t1 - from.t1) * e,
+      a2: from.a2 + (target.a2 - from.a2) * e,
+      a3: from.a3 + (target.a3 - from.a3) * e,
+    };
+  });
+}
+
+function openGripper() {
+  const g0 = state.gap;
+  if (state.held) {
+    state.held.vz = 0;
+    state.held = null; // le cube est lâché et tombe
+  }
+  return startAction(0.4, (e) => { state.gap = g0 + (GAP_OPEN - g0) * e; });
+}
+
+function closeGripper() {
+  if (state.held) return Promise.resolve();
+  const p = fk(state.joints);
+  const g0 = state.gap;
+  let best = null, bestD = Infinity;
+  for (const c of state.cubes) {
+    const d = Math.hypot(c.x - p.x, c.y - p.y);
+    if (Math.abs(c.z - p.z) <= 14 && d < bestD) { best = c; bestD = d; }
+  }
+  if (best && bestD <= 12 && g0 > CUBE + 2) {
+    const c = best, cx = c.x, cy = c.y;
+    return startAction(0.45, (e, raw) => {
+      const g = g0 + (GAP_EMPTY - g0) * e;
+      state.gap = Math.max(CUBE, g);
+      if (g <= CUBE + 6) { // les doigts touchent le cube : il se recentre
+        const k = Math.min(1, (CUBE + 6 - g) / 6);
+        c.x = cx + (p.x - cx) * k;
+        c.y = cy + (p.y - cy) * k;
+      }
+      if (raw >= 1) {
+        c.x = p.x; c.y = p.y; c.yaw = state.joints.t1;
+        state.held = c;
+        state.heldDz = c.z - p.z;
+      }
+    }).then(() => `Pince fermée : ${c.name} saisi.`);
+  }
+  let note = "La pince s'est fermée sans saisir d'objet.";
+  if (best && bestD < 40) note += ` Le ${best.name} est à ${fmt(bestD)} mm du centre de la pince : il faut être à moins de 12 mm.`;
+  else if (g0 <= CUBE + 2) note += " Pensez à ouvrir la pince avant de descendre sur un cube.";
+  return startAction(0.4, (e) => { state.gap = g0 + (GAP_EMPTY - g0) * e; }).then(() => "§" + note);
+}
+
+function waitFor(s) { return startAction(s, null); }
+
+function normalizeName(n) {
+  return String(n).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[_\-]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function findObject(name) {
+  const n = normalizeName(name);
+  return state.cubes.find((c) => c.name === n || c.name === "cube " + n) || null;
+}
+
+function resetWorld() {
+  abortAction();
+  state.joints = ik(HOME.x, HOME.y, HOME.z);
+  state.gap = GAP_OPEN;
+  state.held = null;
+  for (const c of state.cubes) {
+    c.x = c.def.x; c.y = c.def.y; c.z = CUBE / 2; c.yaw = 0; c.vz = 0;
+  }
+}
+
+window.RobotAPI = {
+  checkTarget,
+  moveTo,
+  home: () => moveTo(HOME.x, HOME.y, HOME.z),
+  openGripper,
+  closeGripper,
+  waitFor,
+  position: () => { const p = fk(state.joints); return [r1(p.x), r1(p.y), r1(p.z)]; },
+  objectPosition(name) {
+    const c = findObject(name);
+    if (!c) return { err: `Objet « ${name} » introuvable. Objets disponibles : ${state.cubes.map((c) => '"' + c.name + '"').join(", ")}.` };
+    return { pos: [r1(c.x), r1(c.y), r1(c.z)] };
+  },
+  note(msg) { con.line(msg, "note"); },
+};
+
+/* ============================================================
+   7. Module Python « robot » (exécuté par Skulpt)
+   ============================================================ */
+function robotModule(name) {
+  var mod = {};
+  var R = window.RobotAPI;
+  var none = Sk.builtin.none.none$;
+
+  function nombre(v, fn, arg) {
+    if (v === undefined) throw new Sk.builtin.TypeError(fn + "() : il manque l'argument « " + arg + " ».");
+    if (!Sk.builtin.checkNumber(v)) {
+      throw new Sk.builtin.TypeError(fn + "() : « " + arg + " » doit être un nombre (reçu : " + Sk.abstr.typeName(v) + ").");
+    }
+    return Number(Sk.ffi.remapToJs(v));
+  }
+  function nbArgs(args, n, fn, sig) {
+    if (args.length !== n) {
+      throw new Sk.builtin.TypeError(fn + "() attend " + (n === 0 ? "aucun argument" : n + " argument" + (n > 1 ? "s" : "")) + " : " + sig + " (reçu : " + args.length + ").");
+    }
+  }
+  function attendre(promise) {
+    return Sk.misceval.promiseToSuspension(promise.then(function (msg) {
+      if (typeof msg === "string") R.note(msg.charAt(0) === "§" ? msg.slice(1) : msg);
+      return none;
+    }));
+  }
+  function tuple3(a) {
+    return new Sk.builtin.tuple(a.map(function (v) { return new Sk.builtin.float_(v); }));
+  }
+
+  mod.deplacer_vers = new Sk.builtin.func(function (x, y, z) {
+    nbArgs(arguments, 3, "deplacer_vers", "deplacer_vers(x, y, z)");
+    var a = nombre(x, "deplacer_vers", "x"), b = nombre(y, "deplacer_vers", "y"), c = nombre(z, "deplacer_vers", "z");
+    var err = R.checkTarget(a, b, c);
+    if (err) throw new Sk.builtin.ValueError(err);
+    return attendre(R.moveTo(a, b, c));
+  });
+  mod.position_repos = new Sk.builtin.func(function () {
+    nbArgs(arguments, 0, "position_repos", "position_repos()");
+    var err = R.checkTarget(180, 0, 220);
+    if (err) throw new Sk.builtin.ValueError(err);
+    return attendre(R.home());
+  });
+  mod.ouvrir_pince = new Sk.builtin.func(function () {
+    nbArgs(arguments, 0, "ouvrir_pince", "ouvrir_pince()");
+    return attendre(R.openGripper());
+  });
+  mod.fermer_pince = new Sk.builtin.func(function () {
+    nbArgs(arguments, 0, "fermer_pince", "fermer_pince()");
+    return attendre(R.closeGripper().then(function (m) {
+      return (typeof m === "string" && m.charAt(0) === "§") ? m : undefined;
+    }));
+  });
+  mod.obtenir_position = new Sk.builtin.func(function () {
+    nbArgs(arguments, 0, "obtenir_position", "obtenir_position()");
+    return tuple3(R.position());
+  });
+  mod.position_objet = new Sk.builtin.func(function (nom) {
+    nbArgs(arguments, 1, "position_objet", 'position_objet("cube rouge")');
+    if (!Sk.builtin.checkString(nom)) {
+      throw new Sk.builtin.TypeError('position_objet() attend un nom entre guillemets, par exemple position_objet("cube rouge").');
+    }
+    var res = R.objectPosition(Sk.ffi.remapToJs(nom));
+    if (res.err) throw new Sk.builtin.ValueError(res.err);
+    return tuple3(res.pos);
+  });
+  mod.attendre = new Sk.builtin.func(function (s) {
+    nbArgs(arguments, 1, "attendre", "attendre(secondes)");
+    var d = nombre(s, "attendre", "secondes");
+    if (d < 0) throw new Sk.builtin.ValueError("attendre() : la durée ne peut pas être négative.");
+    return attendre(R.waitFor(d));
+  });
+  return mod;
+}
+const ROBOT_MODULE_SRC = "var $builtinmodule = " + robotModule.toString() + ";";
+
+/* ============================================================
+   8. Exécution du programme
+   ============================================================ */
+const runBtn = $("runBtn");
+let stopRequested = false;
+
+function setStatus(text, s) {
+  const el = $("status");
+  el.textContent = text;
+  el.dataset.state = s;
+}
+
+function builtinRead(path) {
+  if (path === "src/lib/robot.js") return ROBOT_MODULE_SRC;
+  if (Sk.builtinFiles && Sk.builtinFiles.files[path] !== undefined) return Sk.builtinFiles.files[path];
+  throw "File not found: '" + path + "'";
+}
+
+const HINTS = {
+  NameError: "Ce nom n'existe pas. Vérifiez l'orthographe, ou la ligne « from robot import * » en haut du programme.",
+  SyntaxError: "Erreur de syntaxe : vérifiez les parenthèses, les deux-points « : » en fin de ligne et les guillemets.",
+  IndentationError: "Problème d'indentation : les lignes d'un même bloc doivent commencer au même niveau (4 espaces).",
+  TypeError: "Une fonction a reçu un mauvais nombre ou un mauvais type d'arguments.",
+  ZeroDivisionError: "Division par zéro.",
+  ImportError: "Ce module n'existe pas ici. Le module du robot s'importe avec « from robot import * ».",
+};
+
+function describeError(e) {
+  let type = "Erreur", msg = String(e), line = null;
+  if (e && e.tp$name) {
+    type = e.tp$name;
+    try {
+      const a = e.args && e.args.v && e.args.v[0];
+      if (a !== undefined) msg = String(Sk.ffi.remapToJs(a));
+    } catch (x) { /* message brut */ }
+    if (e.traceback && e.traceback.length) {
+      const fr = e.traceback.find((t) => String(t.filename).indexOf("stdin") >= 0) || e.traceback[0];
+      line = fr.lineno;
+    }
+  }
+  const m = /on line (\d+)/.exec(msg);
+  if (m) { line = line || Number(m[1]); msg = msg.replace(/\s*on line \d+/, ""); }
+  if (!msg || msg === "undefined") msg = String(e);
+  return { type, msg, line };
+}
+
+async function run() {
+  if (state.running) { stop(); return; }
+  const code = $("code").value;
+  markLine(null);
+  con.clear();
+  con.line("▶ Exécution de programme.py", "sys");
+  state.running = true;
+  stopRequested = false;
+  runBtn.classList.add("is-running");
+  runBtn.querySelector("span").textContent = "Arrêter";
+  setStatus("En cours", "run");
+
+  Sk.configure({
+    output: (t) => con.write(t),
+    read: builtinRead,
+    __future__: Sk.python3,
+    yieldLimit: 60,
+    killableWhile: true,
+    killableFor: true,
+    execLimit: null,
+    inputfunTakesPrompt: true,
+  });
+  const Interrupt = Sk.builtin.KeyboardInterrupt || Sk.builtin.SystemExit;
+  try {
+    await Sk.misceval.asyncToPromise(
+      () => Sk.importMainWithBody("<stdin>", false, code, true),
+      { "*": () => { if (stopRequested) throw new Interrupt("Programme arrêté"); } }
+    );
+    con.line("✓ Programme terminé.", "ok");
+    setStatus("Terminé", "ok");
+  } catch (e) {
+    if (stopRequested) {
+      con.line("■ Programme arrêté.", "sys");
+      setStatus("Arrêté", "idle");
+    } else {
+      const d = describeError(e);
+      con.line(`✗ ${d.line ? "Ligne " + d.line + " — " : ""}${d.type} : ${d.msg}`, "err");
+      if (HINTS[d.type]) con.line(HINTS[d.type], "err-hint");
+      setStatus(d.line ? "Erreur ligne " + d.line : "Erreur", "err");
+      if (d.line) markLine(d.line);
+      if (!(e && e.tp$name)) console.error(e);
+    }
+  } finally {
+    abortAction();
+    state.running = false;
+    runBtn.classList.remove("is-running");
+    runBtn.querySelector("span").textContent = "Exécuter";
+  }
+}
+
+function stop() {
+  stopRequested = true;
+  abortAction();
+}
+
+/* ============================================================
+   9. Éditeur
+   ============================================================ */
+const codeEl = $("code"), gutterEl = $("gutter");
+let errLine = null;
+function renderGutter() {
+  const n = codeEl.value.split("\n").length;
+  let html = "";
+  for (let i = 1; i <= n; i++) html += `<div${i === errLine ? ' class="err"' : ""}>${i}</div>`;
+  gutterEl.innerHTML = html;
+  gutterEl.scrollTop = codeEl.scrollTop;
+}
+function markLine(n) {
+  errLine = n;
+  renderGutter();
+  if (n) {
+    const top = (n - 3) * 21;
+    if (top > codeEl.scrollTop + codeEl.clientHeight - 60 || top < codeEl.scrollTop) codeEl.scrollTop = Math.max(0, top);
+  }
+}
+function insertText(t) {
+  codeEl.focus();
+  if (!document.execCommand || !document.execCommand("insertText", false, t)) {
+    codeEl.setRangeText(t, codeEl.selectionStart, codeEl.selectionEnd, "end");
+    codeEl.dispatchEvent(new Event("input"));
+  }
+}
+codeEl.addEventListener("input", () => {
+  if (errLine) errLine = null;
+  renderGutter();
+  store.set("atelier-bras-robot.code", codeEl.value);
+});
+codeEl.addEventListener("scroll", () => { gutterEl.scrollTop = codeEl.scrollTop; });
+codeEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); return; }
+  if (e.key === "Tab" && !e.shiftKey) { e.preventDefault(); insertText("    "); return; }
+  if (e.key === "Enter" && !e.shiftKey) {
+    const v = codeEl.value, s = codeEl.selectionStart;
+    const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+    const cur = v.slice(lineStart, s);
+    let indent = (cur.match(/^\s*/) || [""])[0];
+    if (/:\s*(#.*)?$/.test(cur)) indent += "    ";
+    e.preventDefault();
+    insertText("\n" + indent);
+  }
+});
+
+function insertSnippet(snippet) {
+  const v = codeEl.value, s = codeEl.selectionStart;
+  const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+  const before = v.slice(lineStart, s);
+  if (/^\s*$/.test(before)) insertText(snippet);
+  else {
+    const indent = (before.match(/^\s*/) || [""])[0];
+    const lineEnd = v.indexOf("\n", s);
+    codeEl.setSelectionRange(lineEnd === -1 ? v.length : lineEnd, lineEnd === -1 ? v.length : lineEnd);
+    insertText("\n" + indent + snippet);
+  }
+}
+
+function buildFnList() {
+  const ul = $("fnList");
+  for (const f of FUNCTIONS) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "fn";
+    b.title = "Insérer : " + f.insert;
+    b.innerHTML = `<code>${f.sig}</code><span></span>`;
+    b.querySelector("span").textContent = f.doc;
+    b.addEventListener("click", () => insertSnippet(f.insert));
+    li.appendChild(b);
+    ul.appendChild(li);
+  }
+}
+
+/* ============================================================
+   10. Démarrage
+   ============================================================ */
+function boot() {
+  buildFnList();
+  codeEl.value = store.get("atelier-bras-robot.code") || EXAMPLE;
+  renderGutter();
+
+  runBtn.addEventListener("click", run);
+  $("resetBtn").addEventListener("click", () => {
+    if (state.running) stop();
+    resetWorld();
+    markLine(null);
+    setStatus("Prêt", "idle");
+    con.line("↺ Robot et cubes remis en position de départ.", "sys");
+  });
+  $("exampleBtn").addEventListener("click", () => {
+    codeEl.value = EXAMPLE;
+    codeEl.dispatchEvent(new Event("input"));
+    con.line("Exemple rechargé dans l'éditeur.", "sys");
+  });
+  $("clearBtn").addEventListener("click", () => con.clear());
+  $("speed").addEventListener("change", (e) => { state.speed = Number(e.target.value) || 1; });
+  document.querySelectorAll(".view-btn").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
+
+  if (typeof THREE === "undefined" || !THREE.OrbitControls) {
+    $("boot").innerHTML = "<div><strong>Simulation indisponible</strong>La bibliothèque 3D n'a pas pu être téléchargée. Vérifiez la connexion ou le filtrage du réseau (cdnjs.cloudflare.com et cdn.jsdelivr.net).</div>";
+    return;
+  }
+  initScene();
+  applyPose();
+  $("boot").hidden = true;
+  requestAnimationFrame(frame);
+
+  if (typeof Sk === "undefined" || !Sk.builtinFiles) {
+    setStatus("Python indisponible", "err");
+    runBtn.disabled = true;
+    con.line("L'interpréteur Python n'a pas pu être téléchargé. Vérifiez l'accès à cdn.jsdelivr.net.", "err");
+  } else {
+    con.line("Prêt. Écrivez votre programme puis cliquez sur « Exécuter » (ou Ctrl + Entrée).", "sys");
+  }
+
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  if (mq.addEventListener) mq.addEventListener("change", applyTheme);
+  new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(drawTable);
+}
+
+boot();
+})();
+</script>
+
+</html>
